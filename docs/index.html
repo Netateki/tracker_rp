@@ -10,13 +10,13 @@
         button:hover { background: #005999; }
         .card { background: #2d2d2d; padding: 15px; border-radius: 8px; margin-bottom: 10px; }
     </style>
-  <link rel="modulepreload" href="/tracker_rp/tracker_rp-c5a5c7466028fc08.js" crossorigin="anonymous" integrity="sha384-3Sy50xqjCjlE/m+JUrnMHcIhKeeyoT+ns8bRhpeRC5V0MHYvDRAIS4yXh78q3idi"><link rel="preload" href="/tracker_rp/tracker_rp-c5a5c7466028fc08_bg.wasm" crossorigin="anonymous" integrity="sha384-v7DyBs1DTgWjjbS1SBDXVUtWdblmzHCk9AL+1IPitnN+eCqFbGQBCqoKx0vuugcj" as="fetch" type="application/wasm"></head>
+  <link rel="modulepreload" href="/tracker_rp/tracker_rp-a0eb54332a14af16.js" crossorigin="anonymous" integrity="sha384-+uKcySlV3YvA4e51wSEhhhIGK3SjR3ACOUnd5+ESlQewwiJl2Zw9CBwSzNVC3/ia"><link rel="preload" href="/tracker_rp/tracker_rp-a0eb54332a14af16_bg.wasm" crossorigin="anonymous" integrity="sha384-zGS05/+NoAlQ2NbfXGTAgJEuMw/ePfEQI1SFQstDmEL1nFsNpmayrZPEmm9eAEn5" as="fetch" type="application/wasm"></head>
   <body>
     <!-- Trunk injectera le binaire WebAssembly ici -->
   
 <script type="module">
-import init, * as bindings from '/tracker_rp/tracker_rp-c5a5c7466028fc08.js';
-const wasm = await init({ module_or_path: '/tracker_rp/tracker_rp-c5a5c7466028fc08_bg.wasm' });
+import init, * as bindings from '/tracker_rp/tracker_rp-a0eb54332a14af16.js';
+const wasm = await init({ module_or_path: '/tracker_rp/tracker_rp-a0eb54332a14af16_bg.wasm' });
 
 
 window.wasmBindings = bindings;

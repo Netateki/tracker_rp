@@ -22,7 +22,7 @@ impl Roleplay {
 
 #[function_component(App)]
 fn app() -> Html {
-    let rps = use_state(|| LocalStorage::get::[[HashMap[[String, Roleplay]]]](CACHE_KEY).unwrap_or_default());
+    let rps = use_state(|| LocalStorage::get::<HashMap<String, Roleplay>>(CACHE_KEY).unwrap_or_default());
     
     let new_rp_title = use_state(|| String::new());
     
@@ -31,7 +31,7 @@ fn app() -> Html {
 
     let save_and_update = {
         let rps = rps.clone();
-        Callback::from(move |new_data: HashMap[[String, Roleplay]]| {
+        Callback::from(move |new_data: HashMap<String, Roleplay>| {
             let _ = LocalStorage::set(CACHE_KEY, &new_data);
             rps.set(new_data);
         })
@@ -40,7 +40,7 @@ fn app() -> Html {
     let on_new_title = {
         let new_rp_title = new_rp_title.clone();
         Callback::from(move |e: InputEvent| {
-            let input = e.target_unchecked_into::[[HtmlInputElement]]();
+            let input = e.target_unchecked_into::<HtmlInputElement>();
             new_rp_title.set(input.value());
         })
     };
@@ -48,7 +48,7 @@ fn app() -> Html {
     let on_select_change = {
         let inc_rp_title = inc_rp_title.clone();
         Callback::from(move |e: Event| {
-            let select = e.target_unchecked_into::[[HtmlSelectElement]]();
+            let select = e.target_unchecked_into::<HtmlSelectElement>();
             inc_rp_title.set(select.value());
         })
     };
@@ -56,7 +56,7 @@ fn app() -> Html {
     let on_inc_words = {
         let inc_rp_words = inc_rp_words.clone();
         Callback::from(move |e: InputEvent| {
-            let input = e.target_unchecked_into::[[HtmlInputElement]]();
+            let input = e.target_unchecked_into::<HtmlInputElement>();
             inc_rp_words.set(input.value());
         })
     };
@@ -150,48 +150,48 @@ fn app() -> Html {
     titles.sort();
 
     html! {
-        [[div]]
-            [[h1]]{ "Tracker de RP" }[[/h1]]
+        <div>
+            <h1>{ "Tracker de RP" }</h1>
             
-            [[div class="card" style="background: #1a4d2e; border: 1px solid #2d7a47;"]]
-                [[h2]]{ "Statistiques Globales" }[[/h2]]
-                [[p]]{ format!("Mots totaux : {} | Postes totaux : {}", global_words, global_posts) }[[/p]]
-                [[p style="font-size: 1.2em; font-weight: bold;"]]
+            <div class="card" style="background: #1a4d2e; border: 1px solid #2d7a47;">
+                <h2>{ "Statistiques Globales" }</h2>
+                <p>{ format!("Mots totaux : {} | Postes totaux : {}", global_words, global_posts) }</p>
+                <p style="font-size: 1.2em; font-weight: bold;">
                     { format!("Moyenne Générale : {:.2} mots/poste", global_avg) }
-                [[/p]]
-            [[/div]]
+                </p>
+            </div>
             
-            [[div style="display: flex; gap: 15px; flex-wrap: wrap; margin-top: 20px;"]]
-                [[div class="card" style="flex: 1; min-width: 250px;"]]
-                    [[h3]]{ "Créer un nouveau RP" }[[/h3]]
-                    [[input 
+            <div style="display: flex; gap: 15px; flex-wrap: wrap; margin-top: 20px;">
+                <div class="card" style="flex: 1; min-width: 250px;">
+                    <h3>{ "Créer un nouveau RP" }</h3>
+                    <input 
                         placeholder="Titre du RP" 
                         value={(*new_rp_title).clone()}
                         oninput={on_new_title} 
                         style="width: 90%;"
-                    /]]
-                    [[button onclick={create_rp} style="width: 90%; background: #007acc;"]]{ "Créer" }[[/button]]
-                [[/div]]
+                    />
+                    <button onclick={create_rp} style="width: 90%; background: #007acc;">{ "Créer" }</button>
+                </div>
 
-                [[div class="card" style="flex: 1; min-width: 250px;"]]
-                    [[h3]]{ "Ajouter un poste" }[[/h3]]
-                    [[select onchange={on_select_change} style="width: 90%; padding: 8px; margin: 5px 0; background: #2d2d2d; color: white;"]]
-                        [[option value=""]]{ "-- Sélectionner un RP --" }[[/option]]
-                        { for titles.iter().map(|k| html! { [[option value={k.clone()} selected={*inc_rp_title == *k}]]{k}[[/option]] }) }
-                    [[/select]]
-                    [[input 
+                <div class="card" style="flex: 1; min-width: 250px;">
+                    <h3>{ "Ajouter un poste" }</h3>
+                    <select onchange={on_select_change} style="width: 90%; padding: 8px; margin: 5px 0; background: #2d2d2d; color: white;">
+                        <option value="">{ "-- Sélectionner un RP --" }</option>
+                        { for titles.iter().map(|k| html! { <option value={k.clone()} selected={*inc_rp_title == *k}>{k}</option> }) }
+                    </select>
+                    <input 
                         placeholder="Nombre de mots du poste" 
                         type="number"
                         value={(*inc_rp_words).clone()}
                         oninput={on_inc_words} 
                         style="width: 90%;"
-                    /]]
-                    [[button onclick={increment_rp} style="width: 90%; background: #cc7a00;"]]{ "Incrémenter" }[[/button]]
-                [[/div]]
-            [[/div]]
+                    />
+                    <button onclick={increment_rp} style="width: 90%; background: #cc7a00;">{ "Incrémenter" }</button>
+                </div>
+            </div>
 
-            [[h2 style="margin-top: 30px;"]]{ "Vos RPs" }[[/h2]]
-            [[div]]
+            <h2 style="margin-top: 30px;">{ "Vos RPs" }</h2>
+            <div>
                 { for rps.values().map(|rp| {
                     let title_del = rp.title.clone();
                     let title_edit = rp.title.clone();
@@ -207,23 +207,23 @@ fn app() -> Html {
                     };
 
                     html! {
-                        [[div class="card" style="position: relative;"]]
-                            [[div style="position: absolute; right: 15px; top: 15px; display: flex; gap: 5px;"]]
-                                [[button onclick={cb_edit} style="background: #005999; padding: 5px 10px;"]]{ "✎" }[[/button]]
-                                [[button onclick={cb_delete} style="background: #cc0000; padding: 5px 10px;"]]{ "X" }[[/button]]
-                            [[/div]]
+                        <div class="card" style="position: relative;">
+                            <div style="position: absolute; right: 15px; top: 15px; display: flex; gap: 5px;">
+                                <button onclick={cb_edit} style="background: #005999; padding: 5px 10px;">{ "✎" }</button>
+                                <button onclick={cb_delete} style="background: #cc0000; padding: 5px 10px;">{ "X" }</button>
+                            </div>
                             
-                            [[strong]]{ &rp.title }[[/strong]]
-                            [[p]]{ format!("Postes: {} | Total: {} mots", rp.total_posts, rp.total_words) }[[/p]]
-                            [[p style="color: #4da6ff;"]]{ format!("Moyenne: {:.2} mots/poste", rp.average()) }[[/p]]
-                        [[/div]]
+                            <strong>{ &rp.title }</strong>
+                            <p>{ format!("Postes: {} | Total: {} mots", rp.total_posts, rp.total_words) }</p>
+                            <p style="color: #4da6ff;">{ format!("Moyenne: {:.2} mots/poste", rp.average()) }</p>
+                        </div>
                     }
                 }) }
-            [[/div]]
-        [[/div]]
+            </div>
+        </div>
     }
 }
 
 fn main() {
-    yew::Renderer::[[App]]::new().render();
+    yew::Renderer::<App>::new().render();
 }
