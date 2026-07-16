@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <title>Tracker de RP</title>
+    <style>
+        body { font-family: system-ui, sans-serif; padding: 20px; max-width: 800px; margin: auto; background: #1e1e1e; color: #fff; }
+        input, button { padding: 8px; margin: 5px 0; border-radius: 5px; border: 1px solid #444; background: #2d2d2d; color: white;}
+        button { background: #007acc; cursor: pointer; border: none; }
+        button:hover { background: #005999; }
+        .card { background: #2d2d2d; padding: 15px; border-radius: 8px; margin-bottom: 10px; }
+    </style>
+  <link rel="modulepreload" href="/tracker_rp/tracker_rp-c5a5c7466028fc08.js" crossorigin="anonymous" integrity="sha384-3Sy50xqjCjlE/m+JUrnMHcIhKeeyoT+ns8bRhpeRC5V0MHYvDRAIS4yXh78q3idi"><link rel="preload" href="/tracker_rp/tracker_rp-c5a5c7466028fc08_bg.wasm" crossorigin="anonymous" integrity="sha384-v7DyBs1DTgWjjbS1SBDXVUtWdblmzHCk9AL+1IPitnN+eCqFbGQBCqoKx0vuugcj" as="fetch" type="application/wasm"></head>
+  <body>
+    <!-- Trunk injectera le binaire WebAssembly ici -->
+  
+<script type="module">
+import init, * as bindings from '/tracker_rp/tracker_rp-c5a5c7466028fc08.js';
+const wasm = await init({ module_or_path: '/tracker_rp/tracker_rp-c5a5c7466028fc08_bg.wasm' });
+
+
+window.wasmBindings = bindings;
+
+
+dispatchEvent(new CustomEvent("TrunkApplicationStarted", {detail: {wasm}}));
+
+</script></body>
+</html>
