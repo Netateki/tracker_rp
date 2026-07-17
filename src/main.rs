@@ -29,6 +29,9 @@ fn app() -> Html {
     let inc_rp_title = use_state(|| String::new());
     let inc_rp_words = use_state(|| String::new());
 
+    // NOUVEAU : État pour stocker le texte exporté
+    let export_text = use_state(|| String::new());
+
     let save_and_update = {
         let rps = rps.clone();
         Callback::from(move |new_data: HashMap<String, Roleplay>| {
@@ -142,6 +145,37 @@ fn app() -> Html {
         })
     };
 
+    // NOUVEAU : Fonction pour générer le code BBCode
+    let generate_bbcode = {
+        let rps = rps.clone();
+        let export_text = export_text.clone();
+        Callback::from(move |_| {
+            let mut output = String::from("[b]Mois[/b]\n[list]\n");
+            
+            let mut global_words = 0;
+            let mut global_posts = 0;
+
+            let mut titles: Vec<&String> = rps.keys().collect();
+            titles.sort();
+
+            for title in titles {
+                if let Some(rp) = rps.get(title) {
+                    output.push_str(&format!("[*] [url=LIEN_ICI]{}[/url] ; {} RP(s)\n", rp.title, rp.total_posts));
+                    global_words += rp.total_words;
+                    global_posts += rp.total_posts;
+                }
+            }
+
+            let global_avg = if global_posts == 0 { 0.0 } else { global_words as f64 / global_posts as f64 };
+
+            output.push_str(&format!("[b]Total :[/b] {} mots\n", global_words));
+            output.push_str(&format!("[b]Moyenne de mots/rp :[/b] {:.2}\n", global_avg));
+            output.push_str("[/list]");
+
+            export_text.set(output);
+        })
+    };
+
     let global_words: u32 = rps.values().map(|rp| rp.total_words).sum();
     let global_posts: u32 = rps.values().map(|rp| rp.total_posts).sum();
     let global_avg = if global_posts == 0 { 0.0 } else { global_words as f64 / global_posts as f64 };
@@ -188,6 +222,19 @@ fn app() -> Html {
                     />
                     <button onclick={increment_rp} style="width: 90%; background: #cc7a00;">{ "Incrémenter" }</button>
                 </div>
+            </div>
+
+            // NOUVEAU : Bloc d'export BBCode
+            <div class="card" style="margin-top: 20px; background: #2a2a35; border: 1px solid #555;">
+                <h2>{ "Export Forum (BBCode)" }</h2>
+                <p style="font-size: 0.9em; color: #ccc;">{ "Générez le code formaté, prêt à être copié-collé sur votre forum." }</p>
+                <button onclick={generate_bbcode} style="background: #800080; margin-bottom: 10px; padding: 10px 15px; font-weight: bold;">{ "Générer le code BBCode" }</button>
+                <br/>
+                <textarea 
+                    readonly=true 
+                    value={(*export_text).clone()} 
+                    style="width: 95%; height: 150px; background: #1e1e1e; color: #fff; border: 1px solid #555; padding: 10px; font-family: monospace; resize: vertical;"
+                />
             </div>
 
             <h2 style="margin-top: 30px;">{ "Vos RPs" }</h2>
