@@ -11,9 +11,9 @@ pub enum Category {
     Normal,
     Duo,
     Elevage,
+    DuoElevage, // Nouvelle catégorie combinée
 }
 
-// Pour ne pas crasher avec tes anciennes données en cache
 impl Default for Category {
     fn default() -> Self {
         Category::Normal
@@ -48,7 +48,6 @@ fn app() -> Html {
 
     let export_text = use_state(|| String::new());
 
-    // Toggles pour Staff et Jury
     let is_staff = use_state(|| false);
     let is_jury = use_state(|| false);
 
@@ -75,6 +74,7 @@ fn app() -> Html {
             let cat = match select.value().as_str() {
                 "Duo" => Category::Duo,
                 "Elevage" => Category::Elevage,
+                "DuoElevage" => Category::DuoElevage,
                 _ => Category::Normal,
             };
             new_rp_category.set(cat);
@@ -104,7 +104,6 @@ fn app() -> Html {
         })
     };
 
-    // ... [Incrémentation et suppression similaires]
     let increment_rp = {
         let rps = rps.clone();
         let save = save_and_update.clone();
@@ -165,7 +164,7 @@ fn app() -> Html {
         })
     };
 
-    // --- LOGIQUE DE CALCUL DES NIVEAUX ---
+    // --- LOGIQUE DE CALCUL ---
     let global_words: u32 = rps.values().map(|rp| rp.total_words).sum();
     let global_posts: u32 = rps.values().map(|rp| rp.total_posts).sum();
     let global_avg = if global_posts == 0 { 0.0 } else { global_words as f64 / global_posts as f64 };
@@ -177,11 +176,14 @@ fn app() -> Html {
         match rp.category {
             Category::Duo => duo_posts += rp.total_posts,
             Category::Elevage => elevage_posts += rp.total_posts,
+            Category::DuoElevage => {
+                duo_posts += rp.total_posts;
+                elevage_posts += rp.total_posts;
+            }
             Category::Normal => {}
         }
     }
 
-    // 1. Niveaux de Base
     let lvl_base = match global_posts {
         p if p >= 30 => 12,
         p if p >= 20 => 9,
@@ -190,7 +192,6 @@ fn app() -> Html {
         _ => 0,
     };
 
-    // 2. Bonus Mots/RP
     let lvl_mots = if global_posts < 2 {
         0
     } else if global_avg >= 1000.0 {
@@ -201,16 +202,12 @@ fn app() -> Html {
         0
     };
 
-    // 3. Bonus Duo
     let lvl_duo = if duo_posts >= 2 { 1 } else { 0 };
-
-    // 4. Bonus Staff/Jury
     let lvl_staff = if *is_staff { 2 } else { 0 };
     let lvl_jury = if *is_jury { 2 } else { 0 };
 
     let total_niveaux_bonus = lvl_base + lvl_mots + lvl_duo + lvl_staff + lvl_jury;
 
-    // 5. Niveaux Élevage
     let lvl_elevage = match elevage_posts {
         e if e >= 21 => 5,
         e if e >= 16 => 4,
@@ -234,6 +231,7 @@ fn app() -> Html {
                     let cat_tag = match rp.category {
                         Category::Duo => " [Duo]",
                         Category::Elevage => " [Élevage]",
+                        Category::DuoElevage => " [Duo] [Élevage]",
                         Category::Normal => "",
                     };
                     output.push_str(&format!("[*] [url=LIEN_ICI]{}{}[/url] ; {} RP(s)\n", rp.title, cat_tag, rp.total_posts));
@@ -262,7 +260,6 @@ fn app() -> Html {
         <div style="max-width: 900px; margin: 0 auto;">
             <h1>{ "Tracker de RP & Niveaux" }</h1>
             
-            // PANNEAU DE RÉSULTATS DYNAMIQUES
             <div style="display: flex; gap: 20px; flex-wrap: wrap; margin-bottom: 20px;">
                 <div class="card" style="flex: 1; background: #1a4d2e; border: 1px solid #2d7a47;">
                     <h2>{ "Statistiques" }</h2>
@@ -287,7 +284,6 @@ fn app() -> Html {
                 </div>
             </div>
 
-            // OPTIONS GLOBALES
             <div class="card" style="background: #2a2a2a; border: 1px solid #444; margin-bottom: 20px;">
                 <h3>{ "Options Globales (Bonus fixes)" }</h3>
                 <label style="margin-right: 20px; cursor: pointer;">
@@ -306,7 +302,6 @@ fn app() -> Html {
                 </label>
             </div>
             
-            // CRÉATION & INCRÉMENTATION
             <div style="display: flex; gap: 15px; flex-wrap: wrap;">
                 <div class="card" style="flex: 1; min-width: 250px;">
                     <h3>{ "Créer un nouveau RP" }</h3>
@@ -315,6 +310,7 @@ fn app() -> Html {
                         <option value="Normal">{ "Normal" }</option>
                         <option value="Duo">{ "Duo" }</option>
                         <option value="Elevage">{ "Élevage" }</option>
+                        <option value="DuoElevage">{ "Duo & Élevage" }</option>
                     </select>
                     <button onclick={create_rp} style="width: 90%; background: #007acc;">{ "Créer" }</button>
                 </div>
@@ -336,7 +332,6 @@ fn app() -> Html {
                 </div>
             </div>
 
-            // EXPORT BBCODE
             <div class="card" style="margin-top: 20px; background: #2a2a35; border: 1px solid #555;">
                 <h2>{ "Export Forum (BBCode)" }</h2>
                 <button onclick={generate_bbcode} style="background: #800080; margin-bottom: 10px;">{ "Générer BBCode avec Récompenses" }</button>
@@ -344,7 +339,6 @@ fn app() -> Html {
                 <textarea readonly=true value={(*export_text).clone()} style="width: 95%; height: 200px; background: #1e1e1e; color: #fff; font-family: monospace; resize: vertical; padding: 10px;" />
             </div>
 
-            // LISTE DES RPS
             <h2 style="margin-top: 30px;">{ "Vos RPs Actifs" }</h2>
             <div>
                 { for rps.values().map(|rp| {
@@ -370,6 +364,7 @@ fn app() -> Html {
                             let cat = match select.value().as_str() {
                                 "Duo" => Category::Duo,
                                 "Elevage" => Category::Elevage,
+                                "DuoElevage" => Category::DuoElevage,
                                 _ => Category::Normal,
                             };
                             let mut data = (*rps).clone();
@@ -381,8 +376,9 @@ fn app() -> Html {
                     };
 
                     let cat_color = match rp.category {
-                        Category::Duo => "#ff66b2",     // Rose pour Duo
-                        Category::Elevage => "#66ff66", // Vert pour Élevage
+                        Category::Duo => "#ff66b2",
+                        Category::Elevage => "#66ff66",
+                        Category::DuoElevage => "#cc66ff", // Couleur violette pour l'état hybride
                         Category::Normal => "#ccc",
                     };
 
@@ -401,6 +397,7 @@ fn app() -> Html {
                                     <option value="Normal" selected={rp.category == Category::Normal}>{ "Normal" }</option>
                                     <option value="Duo" selected={rp.category == Category::Duo}>{ "Duo" }</option>
                                     <option value="Elevage" selected={rp.category == Category::Elevage}>{ "Élevage" }</option>
+                                    <option value="DuoElevage" selected={rp.category == Category::DuoElevage}>{ "Duo & Élevage" }</option>
                                 </select>
                             </div>
 
