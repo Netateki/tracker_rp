@@ -11,7 +11,7 @@ pub enum Category {
     Normal,
     Duo,
     Elevage,
-    DuoElevage, // Nouvelle catégorie combinée
+    DuoElevage,
 }
 
 impl Default for Category {
@@ -120,7 +120,10 @@ fn app() -> Html {
                     rp.total_words += w;
                     rp.total_posts += 1;
                     save.emit(data);
+                    
+                    // Réinitialisation des champs après un ajout réussi
                     words.set(String::new());
+                    title.set(String::new());
                 }
             }
         })
@@ -321,7 +324,7 @@ fn app() -> Html {
                         let inc_rp_title = inc_rp_title.clone();
                         Callback::from(move |e: Event| inc_rp_title.set(e.target_unchecked_into::<HtmlSelectElement>().value()))
                     } style="width: 90%; padding: 8px; margin: 5px 0; background: #2d2d2d; color: white;">
-                        <option value="">{ "-- Sélectionner un RP --" }</option>
+                        <option value="" selected={(*inc_rp_title).is_empty()}>{ "-- Sélectionner un RP --" }</option>
                         { for titles.iter().map(|k| html! { <option value={k.clone()} selected={*inc_rp_title == *k}>{k}</option> }) }
                     </select>
                     <input placeholder="Mots du poste" type="number" value={(*inc_rp_words).clone()} oninput={
@@ -378,7 +381,7 @@ fn app() -> Html {
                     let cat_color = match rp.category {
                         Category::Duo => "#ff66b2",
                         Category::Elevage => "#66ff66",
-                        Category::DuoElevage => "#cc66ff", // Couleur violette pour l'état hybride
+                        Category::DuoElevage => "#cc66ff",
                         Category::Normal => "#ccc",
                     };
 
