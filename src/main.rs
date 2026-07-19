@@ -36,9 +36,49 @@ impl Roleplay {
     }
 }
 
+// NOUVEAU : La structure de l'état global qui gère le multi-comptes
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+pub struct AppState {
+    pub current_character: String,
+    pub characters: HashMap<String, HashMap<String, Roleplay>>,
+}
+
+impl Default for AppState {
+    fn default() -> Self {
+        let mut chars = HashMap::new();
+        chars.insert("Principal".to_string(), HashMap::new());
+        Self {
+            current_character: "Principal".to_string(),
+            characters: chars,
+        }
+    }
+}
+
 #[function_component(App)]
 fn app() -> Html {
-    let rps = use_state(|| LocalStorage::get::<HashMap<String, Roleplay>>(CACHE_KEY).unwrap_or_default());
+    // NOUVEAU : Logique de chargement avec MIGRATION automatique des anciennes données
+    let state = use_state(|| {
+        if let Ok(new_format) = LocalStorage::get::<AppState>(CACHE_KEY) {
+            new_format
+        } else if let Ok(old_format) = LocalStorage::get::<HashMap<String, Roleplay>>(CACHE_KEY) {
+            let mut chars = HashMap::new();
+            chars.insert("Principal".to_string(), old_format);
+            let migrated = AppState {
+                current_character: "Principal".to_string(),
+                characters: chars,
+            };
+            let _ = LocalStorage::set(CACHE_KEY, &migrated);
+            migrated
+        } else {
+            AppState::default()
+        }
+    });
+
+    // Extraction des données du personnage actuel
+    let current_rps = state.characters.get(&state.current_character).cloned().unwrap_or_default();
+
+    // États de l'UI
+    let new_char_name = use_state(|| String::new());
     
     let new_rp_title = use_state(|| String::new());
     let new_rp_category = use_state(|| Category::Normal);
@@ -47,31 +87,84 @@ fn app() -> Html {
     let inc_rp_words = use_state(|| String::new());
 
     let export_text = use_state(|| String::new());
-
     let is_staff = use_state(|| false);
     let is_jury = use_state(|| false);
 
-    let save_and_update = {
-        let rps = rps.clone();
-        Callback::from(move |new_data: HashMap<String, Roleplay>| {
-            let _ = LocalStorage::set(CACHE_KEY, &new_data);
-            rps.set(new_data);
+    // --- LOGIQUE MULTI-PERSONNAGES ---
+
+    let on_new_char_name = {
+        let new_char_name = new_char_name.clone();
+        Callback::from(move |e: InputEvent| {
+            new_char_name.set(e.target_unchecked_into::<HtmlInputElement>().value());
         })
     };
 
+    let create_char = {
+        let state = state.clone();
+        let name = new_char_name.clone();
+        Callback::from(move |_| {
+            let mut s = (*state).clone();
+            let n = (*name).clone();
+            if !n.is_empty() && !s.characters.contains_key(&n) {
+                s.characters.insert(n.clone(), HashMap::new());
+                s.current_character = n;
+                let _ = LocalStorage::set(CACHE_KEY, &s);
+                state.set(s);
+                name.set(String::new());
+            }
+        })
+    };
+
+    let switch_char = {
+        let state = state.clone();
+        Callback::from(move |e: Event| {
+            let mut s = (*state).clone();
+            s.current_character = e.target_unchecked_into::<HtmlSelectElement>().value();
+            let _ = LocalStorage::set(CACHE_KEY, &s);
+            state.set(s);
+        })
+    };
+
+    let delete_char = {
+        let state = state.clone();
+        Callback::from(move |_| {
+            let mut s = (*state).clone();
+            if s.characters.len() > 1 {
+                if web_sys::window().unwrap().confirm_with_message(&format!("Supprimer définitivement le personnage '{}' et tous ses RPs ?", s.current_character)).unwrap_or(false) {
+                    s.characters.remove(&s.current_character);
+                    s.current_character = s.characters.keys().next().unwrap().clone();
+                    let _ = LocalStorage::set(CACHE_KEY, &s);
+                    state.set(s);
+                }
+            } else {
+                web_sys::window().unwrap().alert_with_message("Vous ne pouvez pas supprimer le seul personnage restant.").unwrap();
+            }
+        })
+    };
+
+    // --- LOGIQUE DE SAUVEGARDE DES RPS (mise à jour pour le state englobant) ---
+    
+    let save_and_update_rps = {
+        let state = state.clone();
+        Callback::from(move |new_data: HashMap<String, Roleplay>| {
+            let mut s = (*state).clone();
+            s.characters.insert(s.current_character.clone(), new_data);
+            let _ = LocalStorage::set(CACHE_KEY, &s);
+            state.set(s);
+        })
+    };
+
+    // --- LOGIQUE EXISTANTE (ajustée pour utiliser current_rps) ---
+
     let on_new_title = {
         let new_rp_title = new_rp_title.clone();
-        Callback::from(move |e: InputEvent| {
-            let input = e.target_unchecked_into::<HtmlInputElement>();
-            new_rp_title.set(input.value());
-        })
+        Callback::from(move |e: InputEvent| new_rp_title.set(e.target_unchecked_into::<HtmlInputElement>().value()))
     };
 
     let on_new_category = {
         let new_rp_category = new_rp_category.clone();
         Callback::from(move |e: Event| {
-            let select = e.target_unchecked_into::<HtmlSelectElement>();
-            let cat = match select.value().as_str() {
+            let cat = match e.target_unchecked_into::<HtmlSelectElement>().value().as_str() {
                 "Duo" => Category::Duo,
                 "Elevage" => Category::Elevage,
                 "DuoElevage" => Category::DuoElevage,
@@ -82,13 +175,13 @@ fn app() -> Html {
     };
 
     let create_rp = {
-        let rps = rps.clone();
-        let save = save_and_update.clone();
+        let current_rps = current_rps.clone();
+        let save = save_and_update_rps.clone();
         let title = new_rp_title.clone();
         let category = new_rp_category.clone();
 
         Callback::from(move |_| {
-            let mut data = (*rps).clone();
+            let mut data = current_rps.clone();
             let t = (*title).clone();
 
             if !t.is_empty() && !data.contains_key(&t) {
@@ -105,13 +198,13 @@ fn app() -> Html {
     };
 
     let increment_rp = {
-        let rps = rps.clone();
-        let save = save_and_update.clone();
+        let current_rps = current_rps.clone();
+        let save = save_and_update_rps.clone();
         let title = inc_rp_title.clone();
         let words = inc_rp_words.clone();
 
         Callback::from(move |_| {
-            let mut data = (*rps).clone();
+            let mut data = current_rps.clone();
             let t = (*title).clone();
             let w: u32 = (*words).parse().unwrap_or(0);
 
@@ -121,7 +214,6 @@ fn app() -> Html {
                     rp.total_posts += 1;
                     save.emit(data);
                     
-                    // Réinitialisation des champs après un ajout réussi
                     words.set(String::new());
                     title.set(String::new());
                 }
@@ -130,21 +222,21 @@ fn app() -> Html {
     };
 
     let delete_rp = {
-        let rps = rps.clone();
-        let save = save_and_update.clone();
+        let current_rps = current_rps.clone();
+        let save = save_and_update_rps.clone();
         Callback::from(move |title_to_delete: String| {
-            let mut data = (*rps).clone();
+            let mut data = current_rps.clone();
             data.remove(&title_to_delete);
             save.emit(data);
         })
     };
 
     let edit_rp_stats = {
-        let rps = rps.clone();
-        let save = save_and_update.clone();
+        let current_rps = current_rps.clone();
+        let save = save_and_update_rps.clone();
         Callback::from(move |old_title: String| {
             let window = web_sys::window().unwrap();
-            let mut data = (*rps).clone();
+            let mut data = current_rps.clone();
 
             if let Some(rp) = data.get(&old_title) {
                 if let Some(new_title) = window.prompt_with_message_and_default("Nouveau titre :", &rp.title).unwrap_or(None) {
@@ -167,15 +259,15 @@ fn app() -> Html {
         })
     };
 
-    // --- LOGIQUE DE CALCUL ---
-    let global_words: u32 = rps.values().map(|rp| rp.total_words).sum();
-    let global_posts: u32 = rps.values().map(|rp| rp.total_posts).sum();
+    // --- CALCULS (basés sur current_rps) ---
+    let global_words: u32 = current_rps.values().map(|rp| rp.total_words).sum();
+    let global_posts: u32 = current_rps.values().map(|rp| rp.total_posts).sum();
     let global_avg = if global_posts == 0 { 0.0 } else { global_words as f64 / global_posts as f64 };
 
     let mut duo_posts = 0;
     let mut elevage_posts = 0;
 
-    for rp in rps.values() {
+    for rp in current_rps.values() {
         match rp.category {
             Category::Duo => duo_posts += rp.total_posts,
             Category::Elevage => elevage_posts += rp.total_posts,
@@ -222,15 +314,15 @@ fn app() -> Html {
 
     // --- GÉNÉRATION DU BBCODE ---
     let generate_bbcode = {
-        let rps = rps.clone();
+        let current_rps = current_rps.clone();
         let export_text = export_text.clone();
         Callback::from(move |_| {
             let mut output = String::from("[b]Mois[/b]\n[list]\n");
-            let mut titles: Vec<&String> = rps.keys().collect();
+            let mut titles: Vec<&String> = current_rps.keys().collect();
             titles.sort();
 
             for title in titles {
-                if let Some(rp) = rps.get(title) {
+                if let Some(rp) = current_rps.get(title) {
                     let cat_tag = match rp.category {
                         Category::Duo => " [Duo]",
                         Category::Elevage => " [Élevage]",
@@ -256,13 +348,33 @@ fn app() -> Html {
         })
     };
 
-    let mut titles: Vec<String> = rps.keys().cloned().collect();
+    let mut titles: Vec<String> = current_rps.keys().cloned().collect();
     titles.sort();
+
+    let mut char_keys: Vec<String> = state.characters.keys().cloned().collect();
+    char_keys.sort();
 
     html! {
         <div style="max-width: 900px; margin: 0 auto;">
             <h1>{ "Tracker de RP & Niveaux" }</h1>
             
+            // --- NOUVEAU : PANNEAU DE SÉLECTION DU PERSONNAGE ---
+            <div class="card" style="background: #333; border: 1px solid #555; margin-bottom: 20px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <strong>{ "Personnage actif :" }</strong>
+                    <select onchange={switch_char} style="padding: 5px; background: #222; color: white; border: 1px solid #888;">
+                        { for char_keys.iter().map(|k| html! {
+                            <option value={k.clone()} selected={state.current_character == *k}>{k}</option>
+                        })}
+                    </select>
+                    <button onclick={delete_char} style="background: #cc0000; padding: 5px 10px; font-size: 0.9em;">{ "Supprimer ce perso" }</button>
+                </div>
+                <div style="display: flex; gap: 10px; align-items: center;">
+                    <input placeholder="Nouveau personnage" value={(*new_char_name).clone()} oninput={on_new_char_name} style="padding: 5px; width: 150px;" />
+                    <button onclick={create_char} style="background: #007acc; padding: 5px 10px;">{ "Ajouter" }</button>
+                </div>
+            </div>
+
             <div style="display: flex; gap: 20px; flex-wrap: wrap; margin-bottom: 20px;">
                 <div class="card" style="flex: 1; background: #1a4d2e; border: 1px solid #2d7a47;">
                     <h2>{ "Statistiques" }</h2>
@@ -342,9 +454,9 @@ fn app() -> Html {
                 <textarea readonly=true value={(*export_text).clone()} style="width: 95%; height: 200px; background: #1e1e1e; color: #fff; font-family: monospace; resize: vertical; padding: 10px;" />
             </div>
 
-            <h2 style="margin-top: 30px;">{ "Vos RPs Actifs" }</h2>
+            <h2 style="margin-top: 30px;">{ format!("RPs Actifs - {}", state.current_character) }</h2>
             <div>
-                { for rps.values().map(|rp| {
+                { for current_rps.values().map(|rp| {
                     let title_del = rp.title.clone();
                     let title_edit = rp.title.clone();
                     let title_cat = rp.title.clone();
@@ -360,8 +472,8 @@ fn app() -> Html {
                     };
 
                     let cb_cat_change = {
-                        let rps = rps.clone();
-                        let save = save_and_update.clone();
+                        let current_rps = current_rps.clone();
+                        let save = save_and_update_rps.clone();
                         Callback::from(move |e: Event| {
                             let select = e.target_unchecked_into::<HtmlSelectElement>();
                             let cat = match select.value().as_str() {
@@ -370,7 +482,7 @@ fn app() -> Html {
                                 "DuoElevage" => Category::DuoElevage,
                                 _ => Category::Normal,
                             };
-                            let mut data = (*rps).clone();
+                            let mut data = current_rps.clone();
                             if let Some(rp_mut) = data.get_mut(&title_cat) {
                                 rp_mut.category = cat;
                                 save.emit(data);
